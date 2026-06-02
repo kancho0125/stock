@@ -492,6 +492,12 @@ function renderHoldingDetail(h){const body=document.getElementById('detailBody')
       <div class="r"><div class="fld"><div class="lbl">손절선 -%</div><input type="number" inputmode="decimal" id="csStop" value="${h.customStopLoss??''}" placeholder="${settings.stopLoss}"></div>
         <div class="fld"><div class="lbl">트레일링 -%</div><input type="number" inputmode="decimal" id="csTrail" value="${h.customTrailing??''}" placeholder="${settings.trailing}"></div></div>
       <div class="reset" id="csReset">전역값으로 초기화</div></div>
+    <div class="stopcfg"><div class="h">보유 정보 수정</div>
+      <div class="r"><div class="fld"><div class="lbl">평균 매수가 (${cur})</div><input type="number" inputmode="decimal" id="edBuy" value="${fmtNumRaw(h.buyPrice,cur)}"></div>
+        <div class="fld"><div class="lbl">수량 (주)</div><input type="number" inputmode="decimal" id="edQty" value="${h.qty}"></div></div>
+      <button class="btn btn-line" id="edSave" style="margin-top:10px">수정 저장</button>
+      <button class="btn btn-line" id="addBuyBtn" style="margin-top:8px">＋ 추가 매수 (평단 자동계산)</button>
+      <button class="btn btn-line" id="delBtn" style="margin-top:8px;color:var(--red);border-color:#ff3b5c44">🗑 이 종목 삭제</button></div>
     <div class="dkpi">
       <div class="k"><div class="l">매수가/수량</div><div class="v">${fmtPx(h.buyPrice,cur)}</div><div class="s">${h.qty}주</div></div>
       <div class="k"><div class="l">평가손익</div><div class="v" style="color:${profit>=0?'var(--green)':'var(--red)'}">${profit>=0?'+':''}${fmtPx(profit,cur)}</div><div class="s" style="color:${s.pl>=0?'var(--green)':'var(--red)'}">${s.pl>=0?'+':''}${s.pl.toFixed(2)}%</div></div>
@@ -511,6 +517,15 @@ function renderHoldingDetail(h){const body=document.getElementById('detailBody')
   const bc=(id,key)=>{const i=body.querySelector('#'+id);i.addEventListener('change',()=>{const v=i.value.trim();h[key]=v===''?null:Math.max(1,Math.min(40,parseFloat(v)));save();renderDetailBody();renderActive()})};
   bc('csStop','customStopLoss');bc('csTrail','customTrailing');
   body.querySelector('#csReset').addEventListener('click',()=>{h.customStopLoss=null;h.customTrailing=null;save();renderDetailBody();renderActive()});
+  body.querySelector('#edSave').addEventListener('click',()=>{const nb=parseFloat(body.querySelector('#edBuy').value),nq=parseFloat(body.querySelector('#edQty').value);
+    if(!nb||nb<=0){toast('매수가 오류','err');return}if(!nq||nq<=0){toast('수량 오류','err');return}
+    h.buyPrice=nb;h.qty=nq;save();renderDetailBody();renderActive();toast('수정 저장됨','ok')});
+  body.querySelector('#addBuyBtn').addEventListener('click',()=>{
+    const pin=prompt(`추가 매수가 (${cur})`,fmtNumRaw(s.current||h.buyPrice,cur));if(pin===null)return;const ap=parseFloat(pin);if(!ap||ap<=0){toast('가격 오류','err');return}
+    const qin=prompt('추가 매수 수량 (주)','');if(qin===null)return;const aq=parseFloat(qin);if(!aq||aq<=0){toast('수량 오류','err');return}
+    const newQty=h.qty+aq,newAvg=(h.buyPrice*h.qty+ap*aq)/newQty;h.buyPrice=newAvg;h.qty=newQty;
+    save();renderDetailBody();renderActive();toast(`추가매수 반영 — 평단 ${fmtPx(newAvg,cur)} · ${newQty}주`,'ok')});
+  body.querySelector('#delBtn').addEventListener('click',()=>{if(confirm(`${h.name||h.ticker}을(를) 삭제할까요? 되돌릴 수 없습니다.`)){state.holdings=state.holdings.filter(x=>x.id!==h.id);state.activeId=null;save();closeDetail();renderActive();toast('삭제됨','ok')}});
   drawChart(h,[{label:'매수가',value:h.buyPrice,color:'#8b95a7'},{label:'손절가',value:s.effStop,color:'#ff3b5c',width:1.5,dash:[6,4]}]);
 }
 function renderReentryDetail(w){const body=document.getElementById('detailBody'),r=evaluateReentry(w),cur=w.currency||'KRW';
